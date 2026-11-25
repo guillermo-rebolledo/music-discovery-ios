@@ -1,0 +1,7 @@
+.DS_Store
+DerivedData/
+xcuserdata/
+Config/Signing.local.xcconfig
+*.mobileprovision
+*.p12
+*.p8
