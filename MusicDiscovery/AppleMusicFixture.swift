@@ -14,6 +14,7 @@ final class AppleMusicFixture: AppleMusic {
     private let first = SongRecommendation(title: "A Real Hero", artist: "College", album: "Studio Album")
     private let second = SongRecommendation(title: "Intro", artist: "The xx", album: "xx")
     private let songURL = URL(string: "https://music.apple.com/us/album/studio-album/9000?i=1001")!
+    private let artistURL = URL(string: "https://music.apple.com/us/artist/chvrches/566867492")!
 
     init(scenario: String) {
         self.scenario = scenario
@@ -55,13 +56,14 @@ final class AppleMusicFixture: AppleMusic {
         ]
     }
 
-    func recommendations(for seed: RecentSong) async throws -> [SongRecommendation] {
-        recommendationRequests += 1
-        guard seed.title == "Midnight City", seed.artist == "M83", recommendationRequests == 1 else {
+    func songRecommendations(for seed: RecentSong) async throws -> [SongRecommendation] {
+        guard seed.title == "Midnight City", seed.artist == "M83" else {
             throw FixtureError.unavailable
         }
         switch scenario {
         case "similarSongs":
+            recommendationRequests += 1
+            guard recommendationRequests == 1 else { throw FixtureError.unavailable }
             try await Task.sleep(for: .seconds(4))
             return [
                 first,
@@ -73,6 +75,19 @@ final class AppleMusicFixture: AppleMusic {
         default:
             return [first, second]
         }
+    }
+
+    func artistRecommendations(for artist: String) async throws -> [ArtistRecommendation] {
+        guard artist == "M83" else { throw FixtureError.unavailable }
+        guard scenario == "similarArtists" else { return ArtistRecommendation.samples(for: artist) }
+        let chvrches = ArtistRecommendation(name: "CHVRCHES", catalogID: "566867492")
+        return [
+            chvrches, ArtistRecommendation(name: "Phoenix", catalogID: nil),
+            ArtistRecommendation(name: "Unavailable Artist", catalogID: "5000"),
+            ArtistRecommendation(name: "Missing URL", catalogID: "3000"),
+            ArtistRecommendation(name: "Wrong URL", catalogID: "4000"),
+            chvrches, ArtistRecommendation(name: "Purity Ring", catalogID: "461030854")
+        ]
     }
 
     func catalogSongs(for recommendation: SongRecommendation) async throws -> [CatalogSong] {
@@ -102,13 +117,44 @@ final class AppleMusicFixture: AppleMusic {
         }
     }
 
-    func openSongURL(_ url: URL) async -> Bool {
-        guard url == songURL else { return false }
+    func catalogArtists(for recommendation: ArtistRecommendation) async throws -> [CatalogArtist] {
+        switch recommendation.name {
+        case "CHVRCHES":
+            return [
+                CatalogArtist(id: "1001", name: "CHVRCHES", url: artistPage("1001")),
+                CatalogArtist(id: "566867492", name: "CHVRCHES", url: artistURL)
+            ]
+        case "Purity Ring":
+            if scenario == "modeSwitch" {
+                // Model a catalog response that arrives even after the caller is cancelled.
+                try await Task { try await Task.sleep(for: .seconds(7)) }.value
+            }
+            return [CatalogArtist(id: "461030854", name: "Purity Ring", url: artistPage("461030854"))]
+        case "Phoenix":
+            return ["2000", "2001"].map { CatalogArtist(id: $0, name: "Phoenix", url: artistPage($0)) }
+        case "Missing URL":
+            return [CatalogArtist(id: "3000", name: "Missing URL", url: nil)]
+        case "Wrong URL":
+            return [CatalogArtist(id: "4000", name: "Wrong URL", url: artistPage("4001"))]
+        default:
+            return []
+        }
+    }
+
+    func openCatalogURL(_ url: URL) async -> Bool {
+        guard url == (scenario == "similarArtists" ? artistURL : songURL) else { return false }
         openAttempts += 1
+        if scenario == "similarSongsRetry" && openAttempts == 1 {
+            try? await Task.sleep(for: .seconds(4))
+        }
         guard openAttempts > 1 else { return false }
         // Use Settings as a stand-in destination so the test can observe a successful handoff.
         MusicKitClient().openSettings()
         return true
+    }
+
+    private func artistPage(_ id: String) -> URL? {
+        URL(string: "https://music.apple.com/us/artist/\(id)")
     }
 
     private func directURL(_ id: String) -> URL? {

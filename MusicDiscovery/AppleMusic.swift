@@ -13,7 +13,8 @@ protocol AppleMusic {
     func requestAuthorization() async -> MusicAuthorization.Status
     func recentlyPlayed() async throws -> [RecentSong]
     func catalogSongs(for recommendation: SongRecommendation) async throws -> [CatalogSong]
-    func openSongURL(_ url: URL) async -> Bool
+    func catalogArtists(for recommendation: ArtistRecommendation) async throws -> [CatalogArtist]
+    func openCatalogURL(_ url: URL) async -> Bool
     func openSettings()
 }
 
@@ -59,7 +60,14 @@ struct MusicKitClient: AppleMusic {
         }
     }
 
-    func openSongURL(_ url: URL) async -> Bool {
+    func catalogArtists(for recommendation: ArtistRecommendation) async throws -> [CatalogArtist] {
+        guard let id = recommendation.catalogID else { return [] }
+        let request = MusicCatalogResourceRequest<Artist>(matching: \.id, memberOf: [MusicItemID(id)])
+        let response = try await request.response()
+        return response.items.map { CatalogArtist(id: $0.id.rawValue, name: $0.name, url: $0.url) }
+    }
+
+    func openCatalogURL(_ url: URL) async -> Bool {
         await UIApplication.shared.open(url)
     }
 

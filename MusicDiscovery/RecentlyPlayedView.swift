@@ -3,13 +3,13 @@ import SwiftUI
 struct RecentlyPlayedView: View {
     let recentlyPlayed: RecentlyPlayed
 
-    let makeDiscovery: (RecentSong) -> SimilarSongs
+    let makeDiscovery: (DiscoverySelection) -> Discovery
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
     @State private var choiceSeed: RecentSong?
-    @State private var pendingSeed: RecentSong?
-    @State private var discoverySeed: RecentSong?
+    @State private var pendingDiscovery: DiscoverySelection?
+    @State private var activeDiscovery: DiscoverySelection?
 
     private var palette: JournalPalette { JournalPalette(colorScheme: colorScheme) }
 
@@ -33,9 +33,11 @@ struct RecentlyPlayedView: View {
                 VStack(alignment: .leading, spacing: 24) {
                     SongCredit(title: seed.title, artist: seed.artist, secondaryText: palette.secondaryText)
                     Divider()
-                    JournalButton("Similar Songs", monospaced: true) {
-                        pendingSeed = seed
-                        choiceSeed = nil
+                    ForEach(DiscoveryMode.allCases, id: \.self) { mode in
+                        JournalButton(LocalizedStringKey(mode.rawValue), monospaced: true) {
+                            pendingDiscovery = DiscoverySelection(song: seed, mode: mode)
+                            choiceSeed = nil
+                        }
                     }
                     Button("Cancel") { choiceSeed = nil }
                         .tint(palette.accent)
@@ -46,8 +48,8 @@ struct RecentlyPlayedView: View {
             }
             .background(palette.background.ignoresSafeArea())
         }
-        .fullScreenCover(item: $discoverySeed) { seed in
-            SimilarSongsView(discovery: makeDiscovery(seed))
+        .fullScreenCover(item: $activeDiscovery) { selection in
+            DiscoveryView(discovery: makeDiscovery(selection))
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
@@ -102,8 +104,8 @@ struct RecentlyPlayedView: View {
     }
 
     private func showPendingDiscovery() {
-        discoverySeed = pendingSeed
-        pendingSeed = nil
+        activeDiscovery = pendingDiscovery
+        pendingDiscovery = nil
     }
 
     private func songList(_ songs: [RecentSong]) -> some View {
