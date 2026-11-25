@@ -2,12 +2,30 @@ import SwiftUI
 
 @main
 struct MusicDiscoveryApp: App {
-    @State private var recentlyPlayed = RecentlyPlayed(appleMusic: Self.appleMusic())
+    private let appleMusic: any AppleMusic
+    @State private var recentlyPlayed: RecentlyPlayed
+
+    init() {
+        let appleMusic = Self.appleMusic()
+        self.appleMusic = appleMusic
+        _recentlyPlayed = State(initialValue: RecentlyPlayed(appleMusic: appleMusic))
+    }
 
     var body: some Scene {
         WindowGroup {
-            RecentlyPlayedView(recentlyPlayed: recentlyPlayed)
+            RecentlyPlayedView(recentlyPlayed: recentlyPlayed) { seed in
+                SimilarSongs(seed: seed, appleMusic: appleMusic, recommendations: recommendations)
+            }
         }
+    }
+
+    private func recommendations(for seed: RecentSong) async throws -> [SongRecommendation] {
+        #if DEBUG
+        if let fixture = appleMusic as? AppleMusicFixture {
+            return try await fixture.recommendations(for: seed)
+        }
+        #endif
+        return SongRecommendation.samples(for: seed)
     }
 
     private static func appleMusic() -> any AppleMusic {
