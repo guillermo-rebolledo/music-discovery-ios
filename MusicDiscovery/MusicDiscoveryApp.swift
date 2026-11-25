@@ -13,19 +13,29 @@ struct MusicDiscoveryApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RecentlyPlayedView(recentlyPlayed: recentlyPlayed) { seed in
-                SimilarSongs(seed: seed, appleMusic: appleMusic, recommendations: recommendations)
+            RecentlyPlayedView(recentlyPlayed: recentlyPlayed) { selection in
+                Discovery(selection: selection, appleMusic: appleMusic, recommendations: recommendations)
             }
         }
     }
 
-    private func recommendations(for seed: RecentSong) async throws -> [SongRecommendation] {
-        #if DEBUG
-        if let fixture = appleMusic as? AppleMusicFixture {
-            return try await fixture.recommendations(for: seed)
+    private func recommendations(for selection: DiscoverySelection) async throws -> [Recommendation] {
+        switch selection.mode {
+        case .songs:
+            #if DEBUG
+            if let fixture = appleMusic as? AppleMusicFixture {
+                return try await fixture.songRecommendations(for: selection.song).map(Recommendation.song)
+            }
+            #endif
+            return SongRecommendation.samples(for: selection.song).map(Recommendation.song)
+        case .artists:
+            #if DEBUG
+            if let fixture = appleMusic as? AppleMusicFixture {
+                return try await fixture.artistRecommendations(for: selection.song.artist).map(Recommendation.artist)
+            }
+            #endif
+            return ArtistRecommendation.samples(for: selection.song.artist).map(Recommendation.artist)
         }
-        #endif
-        return SongRecommendation.samples(for: seed)
     }
 
     private static func appleMusic() -> any AppleMusic {
