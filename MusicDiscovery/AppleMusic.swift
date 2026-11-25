@@ -1,15 +1,19 @@
 import MusicKit
 import UIKit
 
-struct RecentSong {
+struct RecentSong: Hashable, Identifiable {
     let title: String
     let artist: String
+
+    var id: Self { self }
 }
 
 protocol AppleMusic {
     var authorization: MusicAuthorization.Status { get }
     func requestAuthorization() async -> MusicAuthorization.Status
     func recentlyPlayed() async throws -> [RecentSong]
+    func catalogSongs(for recommendation: SongRecommendation) async throws -> [CatalogSong]
+    func openSongURL(_ url: URL) async -> Bool
     func openSettings()
 }
 
@@ -23,6 +27,40 @@ struct MusicKitClient: AppleMusic {
     func recentlyPlayed() async throws -> [RecentSong] {
         let response = try await MusicRecentlyPlayedRequest<Song>().response()
         return response.items.map { RecentSong(title: $0.title, artist: $0.artistName) }
+    }
+
+    func catalogSongs(for recommendation: SongRecommendation) async throws -> [CatalogSong] {
+        let request = MusicCatalogSearchRequest(
+            term: "\(recommendation.title) \(recommendation.artist)",
+            types: [Song.self]
+        )
+        var page = try await request.response().songs
+        var candidates: [CatalogSong] = []
+
+        while true {
+            try Task.checkCancellation()
+            for song in page {
+                let candidate = CatalogSong(
+                    id: song.id.rawValue,
+                    title: song.title,
+                    artist: song.artistName,
+                    album: song.albumTitle,
+                    isAvailable: song.playParameters != nil,
+                    url: song.url
+                )
+                guard recommendation.matchesCredits(of: candidate),
+                      candidates.first?.id != candidate.id else { continue }
+                candidates.append(candidate)
+                // A second distinct listing makes this Recommendation ambiguous.
+                if candidates.count == 2 { return candidates }
+            }
+            guard page.hasNextBatch, let nextPage = try await page.nextBatch() else { return candidates }
+            page = nextPage
+        }
+    }
+
+    func openSongURL(_ url: URL) async -> Bool {
+        await UIApplication.shared.open(url)
     }
 
     func openSettings() {

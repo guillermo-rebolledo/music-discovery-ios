@@ -6,11 +6,11 @@ final class RecentlyPlayedTests: XCTestCase {
         let app = launch("permission")
 
         XCTAssertTrue(app.staticTexts["Allow Apple Music access to see the songs you’ve played recently."].exists)
-        XCTAssertFalse(app.staticTexts["Midnight City, M83"].exists)
+        XCTAssertFalse(app.buttons["Midnight City, M83"].exists)
         tap("Allow Apple Music Access", in: app)
 
-        let first = app.staticTexts["Midnight City, M83"]
-        let second = app.staticTexts["Digital Love, Daft Punk"]
+        let first = app.buttons["Midnight City, M83"]
+        let second = app.buttons["Digital Love, Daft Punk"]
         XCTAssertTrue(first.waitForExistence(timeout: 5))
         XCTAssertTrue(second.exists)
         XCTAssertLessThan(first.frame.minY, second.frame.minY)
@@ -26,7 +26,7 @@ final class RecentlyPlayedTests: XCTestCase {
         XCTAssertTrue(settings.wait(for: .runningForeground, timeout: 10))
         app.activate()
 
-        XCTAssertTrue(app.staticTexts["Midnight City, M83"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Midnight City, M83"].waitForExistence(timeout: 5))
     }
 
     func testRestrictedAccessExplainsTheRestriction() {
@@ -43,17 +43,17 @@ final class RecentlyPlayedTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Play a few songs in Apple Music, then come back and refresh."].exists)
         tap("Refresh", in: app)
 
-        XCTAssertTrue(app.staticTexts["Midnight City, M83"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Midnight City, M83"].waitForExistence(timeout: 5))
     }
 
     func testRefreshReplacesThePreviousSongs() {
         let app = launch("refresh")
 
-        XCTAssertTrue(app.staticTexts["Midnight City, M83"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Midnight City, M83"].waitForExistence(timeout: 5))
         tap("Refresh", in: app)
 
-        XCTAssertTrue(app.staticTexts["Archangel, Burial"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.staticTexts["Midnight City, M83"].exists)
+        XCTAssertTrue(app.buttons["Archangel, Burial"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["Midnight City, M83"].exists)
     }
 
     func testRetryRecoversFromARequestFailure() {
@@ -62,7 +62,7 @@ final class RecentlyPlayedTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Couldn’t load recent songs"].exists)
         tap("Try Again", in: app)
 
-        XCTAssertTrue(app.staticTexts["Midnight City, M83"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Midnight City, M83"].waitForExistence(timeout: 5))
     }
 
     func testRecentlyPlayedAtLargestDynamicTypeSize() throws {
@@ -73,7 +73,7 @@ final class RecentlyPlayedTests: XCTestCase {
         let heading = app.staticTexts["Recently Played"]
         XCTAssertTrue(heading.exists)
         XCTAssertTrue(app.buttons["Refresh"].exists)
-        let row = app.staticTexts["A song title long enough to wrap across multiple lines, An artist credit that also wraps"]
+        let row = app.buttons["A song title long enough to wrap across multiple lines, An artist credit that also wraps"]
         XCTAssertTrue(row.exists)
         XCTAssertGreaterThan(row.frame.height, 150)
         try app.performAccessibilityAudit(for: [.textClipped, .sufficientElementDescription])
