@@ -16,13 +16,12 @@ struct DiscoverySelection: Hashable, Identifiable {
 struct SongRecommendation {
     let title: String
     let artist: String
-    let album: String
+    let album: String?
 
     func matchesCredits(of song: CatalogSong) -> Bool {
-        guard let album = song.album else { return false }
-        return sameCredit(song.title, title)
-            && sameCredit(song.artist, artist)
-            && sameCredit(album, self.album)
+        guard sameCredit(song.title, title), sameCredit(song.artist, artist) else { return false }
+        guard let album else { return true }
+        return song.album.map { sameCredit($0, album) } ?? false
     }
 
     static func samples(for seed: RecentSong) -> [Self] {
@@ -134,7 +133,7 @@ enum Recommendation {
 @Observable
 final class Discovery {
     enum Phase {
-        case loading, finished, failed
+        case loading, finished, failed, withdrawn
     }
 
     let song: RecentSong
@@ -159,7 +158,7 @@ final class Discovery {
     }
 
     func select(_ mode: DiscoveryMode) {
-        guard self.mode != mode else { return }
+        guard phase != .withdrawn, self.mode != mode else { return }
         self.mode = mode
         pendingRecommendations = nil
         matches.removeAll()
@@ -197,12 +196,19 @@ final class Discovery {
         attempt += 1
     }
 
+    func withdraw() {
+        phase = .withdrawn
+        pendingRecommendations = nil
+        matches.removeAll()
+        attempt += 1
+    }
+
     func open(_ match: CatalogMatch) async -> Bool {
         await appleMusic.openCatalogURL(match.url)
     }
 
     private func isCurrent(_ attempt: Int) -> Bool {
-        attempt == self.attempt && !Task.isCancelled
+        phase != .withdrawn && attempt == self.attempt && !Task.isCancelled
     }
 
     private func catalogMatch(for recommendation: Recommendation) async throws -> CatalogMatch? {

@@ -2,12 +2,14 @@ import SwiftUI
 
 struct DiscoveryView: View {
     @State var discovery: Discovery
+    let lastFM: LastFMDiscovery?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var opening = false
     @State private var failedHandoff: CatalogMatch?
+    @State private var showsSettings = false
 
     private var palette: JournalPalette { JournalPalette(colorScheme: colorScheme) }
 
@@ -22,6 +24,11 @@ struct DiscoveryView: View {
                         .padding(.vertical, 8)
                 }
                 .tint(palette.accent)
+
+                if lastFM != nil {
+                    Button("Discovery Settings", systemImage: "gearshape") { showsSettings = true }
+                        .tint(palette.accent)
+                }
 
                 VStack(alignment: .leading, spacing: 12) {
                     modeControl
@@ -49,6 +56,10 @@ struct DiscoveryView: View {
                     JournalButton("Choose Another Song") { dismiss() }
                 case .finished:
                     EmptyView()
+                case .withdrawn:
+                    Text("Last.fm discovery is off")
+                        .font(.headline.monospaced())
+                    JournalButton("Choose Another Song") { dismiss() }
                 }
 
                 if !discovery.matches.isEmpty {
@@ -61,6 +72,14 @@ struct DiscoveryView: View {
         .accessibilityIdentifier("discoveryResults")
         .background(palette.background.ignoresSafeArea())
         .task(id: attempt) { await discovery.load(attempt: attempt) }
+        .sheet(isPresented: $showsSettings) {
+            if let lastFM {
+                DiscoverySettings(lastFM: lastFM) {
+                    discovery.withdraw()
+                    failedHandoff = nil
+                }
+            }
+        }
         .alert("Couldn’t open Apple Music", isPresented: Binding(
             get: { failedHandoff != nil },
             set: { if !$0 { failedHandoff = nil } }
@@ -106,6 +125,7 @@ struct DiscoveryView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(mode.rawValue)
                 .accessibilityAddTraits(selected ? .isSelected : [])
+                .disabled(discovery.phase == .withdrawn)
             }
         }
     }
@@ -141,6 +161,11 @@ struct DiscoveryView: View {
                 .disabled(opening)
                 Divider()
             }
+            if lastFM != nil {
+                Link("Powered by AudioScrobbler (Last.fm)", destination: URL(string: "https://www.last.fm/")!)
+                    .font(.footnote)
+                    .padding(.vertical, 12)
+            }
         }
     }
 
@@ -152,6 +177,48 @@ struct DiscoveryView: View {
             opening = false
             if !opened && discovery.matches.contains(where: { $0.url == match.url }) {
                 failedHandoff = match
+            }
+        }
+    }
+}
+
+struct DiscoverySettings: View {
+    let lastFM: LastFMDiscovery
+    var onWithdrawal: () -> Void = {}
+
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    if lastFM.isAllowed {
+                        Button("Turn Off Last.fm", role: .destructive) {
+                            lastFM.setAllowed(false)
+                            onWithdrawal()
+                            dismiss()
+                        }
+                    } else {
+                        Text("Last.fm discovery is off. You can allow it when you choose a Discovery Mode.")
+                    }
+                } header: {
+                    Text("Last.fm")
+                }
+                #if DEBUG
+                if let fixture = lastFM.fixture {
+                    Text("Last.fm requests: \(fixture.requestCount)")
+                    Text("Last.fm responses: \(fixture.responseCount)")
+                    if fixture.hasPendingResponse {
+                        Button("Deliver pending response", action: fixture.deliverPendingResponse)
+                    }
+                }
+                #endif
+            }
+            .navigationTitle("Discovery Settings")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
             }
         }
     }

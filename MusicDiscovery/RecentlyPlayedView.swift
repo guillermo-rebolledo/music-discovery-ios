@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RecentlyPlayedView: View {
     let recentlyPlayed: RecentlyPlayed
+    let lastFM: LastFMDiscovery?
 
     let makeDiscovery: (DiscoverySelection) -> Discovery
 
@@ -10,15 +11,24 @@ struct RecentlyPlayedView: View {
     @State private var choiceSeed: RecentSong?
     @State private var pendingDiscovery: DiscoverySelection?
     @State private var activeDiscovery: DiscoverySelection?
+    @State private var consentSelection: DiscoverySelection?
+    @State private var showsSettings = false
 
     private var palette: JournalPalette { JournalPalette(colorScheme: colorScheme) }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                Text("Recently Played")
-                    .font(.largeTitle.monospaced().weight(.bold))
-                    .accessibilityAddTraits(.isHeader)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Recently Played")
+                        .font(.largeTitle.monospaced().weight(.bold))
+                        .accessibilityAddTraits(.isHeader)
+
+                    if lastFM != nil {
+                        Button("Discovery Settings", systemImage: "gearshape") { showsSettings = true }
+                            .tint(palette.accent)
+                    }
+                }
 
                 Divider()
 
@@ -27,6 +37,7 @@ struct RecentlyPlayedView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(24)
         }
+        .accessibilityHidden(activeDiscovery != nil)
         .background(palette.background.ignoresSafeArea())
         .sheet(item: $choiceSeed, onDismiss: showPendingDiscovery) { seed in
             ScrollView {
@@ -49,7 +60,26 @@ struct RecentlyPlayedView: View {
             .background(palette.background.ignoresSafeArea())
         }
         .fullScreenCover(item: $activeDiscovery) { selection in
-            DiscoveryView(discovery: makeDiscovery(selection))
+            DiscoveryView(discovery: makeDiscovery(selection), lastFM: lastFM)
+        }
+        .sheet(isPresented: $showsSettings) {
+            if let lastFM { DiscoverySettings(lastFM: lastFM) }
+        }
+        .alert("Share with Last.fm?", isPresented: Binding(
+            get: { consentSelection != nil },
+            set: { if !$0 { consentSelection = nil } }
+        ), presenting: consentSelection) { selection in
+            Button("Allow") {
+                lastFM?.setAllowed(true)
+                activeDiscovery = selection
+            }
+            Button("Not Now", role: .cancel) {}
+        } message: { selection in
+            if selection.mode == .songs {
+                Text("Similar Songs shares “\(selection.song.title)” and artist “\(selection.song.artist)” with Last.fm. Similar Artists shares only the selected artist name. You can turn this off in Discovery Settings.")
+            } else {
+                Text("Similar Artists shares “\(selection.song.artist)” with Last.fm. Similar Songs shares the selected song title and artist name. You can turn this off in Discovery Settings.")
+            }
         }
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
@@ -104,8 +134,13 @@ struct RecentlyPlayedView: View {
     }
 
     private func showPendingDiscovery() {
-        activeDiscovery = pendingDiscovery
+        guard let selection = pendingDiscovery else { return }
         pendingDiscovery = nil
+        if lastFM?.isAllowed == false {
+            consentSelection = selection
+        } else {
+            activeDiscovery = selection
+        }
     }
 
     private func songList(_ songs: [RecentSong]) -> some View {

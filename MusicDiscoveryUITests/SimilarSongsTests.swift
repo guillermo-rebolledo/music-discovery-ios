@@ -2,6 +2,92 @@ import XCTest
 
 @MainActor
 final class SimilarSongsTests: XCTestCase {
+    func testDecliningLastFMKeepsRecentlyPlayedAndSendsNoRequests() {
+        let app = launch("similarSongs", arguments: ["-lastFMFixture", "success"])
+        startDiscovery(in: app)
+
+        let consent = app.alerts["Share with Last.fm?"]
+        XCTAssertTrue(consent.waitForExistence(timeout: 5))
+        XCTAssertTrue(consent.staticTexts.containing(NSPredicate(
+            format: "label CONTAINS %@ AND label CONTAINS %@", "Midnight City", "M83"
+        )).firstMatch.exists)
+        tap(consent.buttons["Not Now"])
+        XCTAssertTrue(app.buttons["Digital Love, Daft Punk"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.scrollViews["discoveryResults"].exists)
+        tap(app.buttons["Discovery Settings"])
+        XCTAssertTrue(app.staticTexts["Last.fm requests: 0"].exists)
+    }
+
+    func testLastFMUsesBothDiscoveryModesAndOpensVerifiedCatalogMatches() {
+        let app = launch("lastFM", arguments: ["-lastFMFixture", "success"])
+        tap(app.buttons["Midnight City, M83"])
+        tap(app.buttons["Similar Artists"])
+
+        let consent = app.alerts["Share with Last.fm?"]
+        XCTAssertTrue(consent.waitForExistence(timeout: 5))
+        XCTAssertTrue(consent.staticTexts.containing(NSPredicate(
+            format: "label CONTAINS %@ AND NOT (label CONTAINS %@)", "M83", "Midnight City"
+        )).firstMatch.exists)
+        tap(consent.buttons["Allow"])
+
+        let artist = result("Kavinsky", in: app)
+        XCTAssertTrue(artist.waitForExistence(timeout: 5))
+        XCTAssertFalse(result("Same Name", in: app).exists)
+        XCTAssertFalse(result("Purity Ring", in: app).exists)
+        tap(artist)
+        let destination = XCUIApplication(bundleIdentifier: "com.apple.Preferences")
+        XCTAssertTrue(destination.wait(for: .runningForeground, timeout: 10))
+        app.activate()
+
+        tap(app.buttons["Similar Songs"])
+        let song = result("Genesis, Justice", in: app)
+        XCTAssertTrue(song.waitForExistence(timeout: 5))
+        XCTAssertFalse(result("A Real Hero, College", in: app).exists)
+        XCTAssertFalse(result("Intro, The xx", in: app).exists)
+        tap(song)
+        XCTAssertTrue(destination.wait(for: .runningForeground, timeout: 10))
+        app.activate()
+        tap(app.scrollViews["discoveryResults"].buttons["Discovery Settings"])
+        XCTAssertTrue(app.staticTexts["Last.fm requests: 2"].exists)
+    }
+
+    func testWithdrawingLastFMConsentDiscardsLateResponseAndRequiresFreshConsent() {
+        let app = launch("lastFM", arguments: ["-lastFMFixture", "late"])
+        startDiscovery(in: app)
+        tap(app.alerts["Share with Last.fm?"].buttons["Allow"])
+
+        let settings = app.scrollViews["discoveryResults"].buttons["Discovery Settings"]
+        tap(settings)
+        XCTAssertTrue(app.staticTexts["Last.fm requests: 1"].waitForExistence(timeout: 5))
+        tap(app.buttons["Turn Off Last.fm"])
+        XCTAssertTrue(app.staticTexts["Last.fm discovery is off"].waitForExistence(timeout: 5))
+
+        tap(settings)
+        tap(app.buttons["Deliver pending response"])
+        XCTAssertTrue(app.staticTexts["Last.fm responses: 1"].waitForExistence(timeout: 5))
+        tap(app.buttons["Done"])
+        XCTAssertFalse(result("Genesis, Justice", in: app).exists)
+        XCTAssertFalse(app.buttons["Similar Artists"].isEnabled)
+
+        tap(app.buttons["Choose Another Song"])
+        startDiscovery(in: app)
+        tap(app.alerts["Share with Last.fm?"].buttons["Not Now"])
+        tap(app.buttons["Discovery Settings"])
+        XCTAssertTrue(app.staticTexts["Last.fm requests: 1"].exists)
+    }
+
+    func testLastFMFailureCanRetryWithoutAnotherConsentPrompt() {
+        let app = launch("lastFM", arguments: ["-lastFMFixture", "retry"])
+        startDiscovery(in: app)
+        tap(app.alerts["Share with Last.fm?"].buttons["Allow"])
+
+        XCTAssertTrue(app.staticTexts["Couldn’t finish loading similar songs"].waitForExistence(timeout: 5))
+        tap(app.buttons["Retry Lookup"])
+        XCTAssertTrue(result("Genesis, Justice", in: app).waitForExistence(timeout: 5))
+        tap(app.scrollViews["discoveryResults"].buttons["Discovery Settings"])
+        XCTAssertTrue(app.staticTexts["Last.fm requests: 2"].exists)
+    }
+
     func testArtistChoiceOpensVerifiedArtistAndRetriesHandoff() {
         let app = launch("similarArtists")
         tap(app.buttons["Midnight City, M83"])
