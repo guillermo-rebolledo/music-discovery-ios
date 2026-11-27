@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		8743BA72413A41E4861C181A /* LastFM.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8743BA72413A41E4861C181B /* LastFM.swift */; };
 		3AB57535BE9898E0E77E433E /* MusicDiscoveryApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E6F24113E91F7B90AAAF974 /* MusicDiscoveryApp.swift */; };
 		74ED4ACAB8D3BB7E318B2705 /* RecentlyPlayedTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 946E5FB6C8C2125C78522CD5 /* RecentlyPlayedTests.swift */; };
 		74ED4ACAB8D3BB7E318B2706 /* SimilarSongsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 946E5FB6C8C2125C78522CD6 /* SimilarSongsTests.swift */; };
@@ -29,6 +30,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		8743BA72413A41E4861C181B /* LastFM.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LastFM.swift; sourceTree = "<group>"; };
 		3605211A44B44AF14F763B5C /* AppleMusicFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleMusicFixture.swift; sourceTree = "<group>"; };
 		7BC1472AB3800AB33731F6B9 /* RecentlyPlayedView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentlyPlayedView.swift; sourceTree = "<group>"; };
 		498314A14C18497E90F8072D /* Discovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Discovery.swift; sourceTree = "<group>"; };
@@ -84,6 +86,7 @@
 			isa = PBXGroup;
 			children = (
 				D32CD3F78C2960A2DFB233C7 /* AppleMusic.swift */,
+				8743BA72413A41E4861C181B /* LastFM.swift */,
 				3605211A44B44AF14F763B5C /* AppleMusicFixture.swift */,
 				9E6F24113E91F7B90AAAF974 /* MusicDiscoveryApp.swift */,
 				C5CA28B42B5D032A5AAA0703 /* RecentlyPlayed.swift */,
@@ -175,6 +178,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8554F9CCBC13E02AF36A8167 /* AppleMusic.swift in Sources */,
+				8743BA72413A41E4861C181A /* LastFM.swift in Sources */,
 				A4D58AB83119BE2AA18EB47A /* AppleMusicFixture.swift in Sources */,
 				3AB57535BE9898E0E77E433E /* MusicDiscoveryApp.swift in Sources */,
 				A8847F7E9129C0831AE0B928 /* RecentlyPlayed.swift in Sources */,

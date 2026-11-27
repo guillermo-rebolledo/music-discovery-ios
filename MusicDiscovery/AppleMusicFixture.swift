@@ -93,6 +93,12 @@ final class AppleMusicFixture: AppleMusic {
     func catalogSongs(for recommendation: SongRecommendation) async throws -> [CatalogSong] {
         if scenario == "similarSongsEmpty" { return [] }
         switch recommendation.title {
+        case "Genesis":
+            return [
+                listing(for: recommendation, id: "6000", url: directURL("6000")),
+                CatalogSong(id: "6001", title: "Genesis", artist: "Cover Artist", album: "Cover", isAvailable: true, url: directURL("6001")),
+                CatalogSong(id: "6002", title: "Genesis (Live)", artist: "Justice", album: "Live", isAvailable: true, url: directURL("6002"))
+            ]
         case first.title:
             return [
                 CatalogSong(id: "1002", title: first.title, artist: "Cover Artist", album: first.album, isAvailable: true, url: directURL("1002")),
@@ -119,6 +125,13 @@ final class AppleMusicFixture: AppleMusic {
 
     func catalogArtists(for recommendation: ArtistRecommendation) async throws -> [CatalogArtist] {
         switch recommendation.name {
+        case "Kavinsky":
+            return [
+                CatalogArtist(id: "6000", name: "Kavinsky", url: artistPage("6000")),
+                CatalogArtist(id: "115429828", name: "Kavinsky", url: artistPage("115429828"))
+            ]
+        case "Same Name":
+            return [CatalogArtist(id: "7000", name: "Same Name", url: artistPage("7000"))]
         case "CHVRCHES":
             return [
                 CatalogArtist(id: "1001", name: "CHVRCHES", url: artistPage("1001")),
@@ -142,6 +155,11 @@ final class AppleMusicFixture: AppleMusic {
     }
 
     func openCatalogURL(_ url: URL) async -> Bool {
+        if scenario == "lastFM" {
+            guard url == directURL("6000") || url == artistPage("115429828") else { return false }
+            MusicKitClient().openSettings()
+            return true
+        }
         guard url == (scenario == "similarArtists" ? artistURL : songURL) else { return false }
         openAttempts += 1
         if scenario == "similarSongsRetry" && openAttempts == 1 {
